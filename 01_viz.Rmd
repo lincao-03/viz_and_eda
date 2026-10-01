@@ -1,0 +1,87 @@
+---
+title: "Visualization"
+output: github_document
+---
+
+```{r}
+library(tidyverse)
+library(ggridges)
+
+library(p8105.datasets)
+data("weather_df")
+```
+
+```{r}
+weather_df
+```
+
+make scatterplot
+```{r}
+ggplot(weather_df, aes(x=tmin, y=tmax))
+ggplot(weather_df, aes(x=tmin, y=tmax)) + geom_point()
+```
+
+different way
+```{r}
+ggp_temp_scatter = 
+  weather_df |>
+  ggplot(aes(x = tmin, y = tmax)) + 
+  geom_point()
+ggp_temp_scatter
+```
+
+more fancier
+```{r}
+weather_df |>
+  ggplot(aes(x=tmin, y=tmax, color=name)) + 
+  geom_point(alpha = .25) + #比较透明 1是完全不透明
+  geom_smooth(se=FALSE) #不显示趋势线的阴影
+```
+
+```{r}
+weather_df |> 
+  ggplot(aes(x = tmin, y = tmax)) + 
+  geom_point(aes(color = name), alpha = .25) + #只有点按照这个改名字颜色
+  geom_smooth(se = FALSE)
+```
+
+show faceting
+```{r}
+weather_df |>
+  ggplot(aes(x=tmin, y=tmax, color=name)) + 
+  geom_point(alpha = .5) +
+  facet_grid(. ~name) #按照name拆成小图
+```
+or
+```{r}
+weather_df |>
+  ggplot(aes(x=tmin, y=tmax, color=name)) + 
+  geom_point(alpha = .5) +
+  facet_grid(cols=vars(name)) #和上面一个意思
+```
+
+something else
+```{r}
+weather_df |>
+  ggplot(aes(x=tmin, y=tmax, color=name)) + 
+  geom_point(aes(size=prcp), alpha = .5) + #prcp决定点的大小
+  geom_smooth(se=FALSE)+
+  facet_grid(. ~name)
+```
+
+make a plot of central park tmax v tmin only, and convert temperatures to fahrenheit.
+```{r}
+weather_df |>
+  filter(name == "CentralPark_NY") |>
+  mutate(tmax = tmax * (9 / 5) + 32,
+         tmin = tmin * (9 / 5) + 32
+         ) |>
+  ggplot(aes(x=tmin, y=tmax)) + geom_point()
+  
+```
+
+
+
+
+
+
