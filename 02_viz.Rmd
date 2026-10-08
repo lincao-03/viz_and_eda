@@ -1,0 +1,230 @@
+---
+title: "02_viz"
+output: github_document
+---
+
+```{r}
+library(tidyverse)
+library(patchwork)
+library(p8105.datasets)
+
+data("weather_df")
+```
+
+start with a scatterplot.
+```{r}
+weather_df |>
+  ggplot(aes(x = tmax, y = tmin, color = name)) +
+  geom_point() +
+  labs( #修改图的文字
+    title = "Temperature (Max vs Min)",
+    x = "Max Temperature",
+    y = "Min Temperature",
+    color = "Location",
+    caption = "Data from NOAA for three weather stations." #图下方的说明
+  )
+```
+
+try other scales
+```{r}
+weather_df |> 
+  ggplot(aes(x = tmax, y = tmin, color = name)) + 
+  geom_point() + 
+  labs(
+    title = "Temperature (Max vs Min)",
+    x = "Max Temperature (C)",
+    y = "Min Temperature (C)",
+    color = "Location",
+    caption = "Data from NOAA for three weather stations."
+  ) + 
+  scale_x_continuous( #调整坐标轴
+    breaks = c(-10, 0, 15),
+    labels = c("-10 C", "0", "Fifteen")
+  ) +
+  scale_y_continuous(
+    trans = "sqrt", #平方根排列
+    position = "right" #坐标放到右侧
+  )
+```
+
+look at the color
+```{r}
+weather_df |> 
+  ggplot(aes(x = tmax, y = tmin, color = name)) + 
+  geom_point() +
+  scale_color_hue(h = c(100, 300))
+```
+
+```{r}
+weather_df |> 
+  ggplot(aes(x = tmax, y = tmin, color = name)) + 
+  geom_point() +
+  viridis::scale_color_viridis(
+    name = "Location",
+    discrete = TRUE #颜色对应的是类别
+  )
+```
+
+## Themes
+```{r}
+weather_df |> 
+  ggplot(aes(x = tmin, y = tmax, color = name)) + 
+  geom_point() +
+  viridis::scale_color_viridis(
+    name = "Location",
+    discrete = TRUE
+  ) + 
+  theme(legend.position = "bottom")
+```
+
+```{r}
+weather_df |> 
+  ggplot(aes(x = tmin, y = tmax, color = name)) + 
+  geom_point() +
+  viridis::scale_color_viridis(
+    name = "Location",
+    discrete = TRUE
+  ) + 
+  theme_classic() + #白色背景
+  theme(legend.position = "bottom")
+```
+
+update the tmax vs date plot
+```{r}
+weather_df |>
+  ggplot(aes(x = date, y = tmax, color = name)) +
+  geom_point() +
+  geom_smooth(se = FALSE) +
+  labs(
+    title = "Seasonal trends in Max Temp",
+    x = "Date",
+    y = "Max Temp",
+    caption = "Max daily temp in three weather stations in 2021 and 2020",
+    color = "Location"
+  ) +
+  viridis::scale_color_viridis(
+    discrete = TRUE
+  ) +
+  theme_minimal() + #简洁主题
+  theme(legend.position = "bottom")
+```
+
+## Two more weird but useful plot things
+```{r}
+central_park_df = 
+  weather_df |>
+  filter(name == "CentralPark_NY")
+
+molokai_df = 
+  weather_df |> 
+  filter(name == "Molokai_HI")
+
+ggplot(molokai_df, aes(x = date, y = tmax, color = name)) + 
+  geom_point() + 
+  geom_line(data = central_park_df)
+```
+
+multiple panels with different plot types
+```{r}
+ggp_tmax_tmin = 
+  weather_df |> 
+  ggplot(aes(x = tmin, y = tmax, color = name)) + 
+  geom_point() + 
+  theme(legend.position = "none")
+
+ggp_prcp_density = 
+  weather_df |> 
+  filter(prcp > 0) |> 
+  ggplot(aes(x = prcp, fill = name)) + 
+  geom_density(alpha = .5) + 
+  theme(legend.position = "none")
+
+ggp_seasonal =
+  weather_df |> 
+  ggplot(aes(x = date, y = tmax, color = name)) + 
+  geom_point() + 
+  theme(legend.position = "bottom")
+
+(ggp_tmax_tmin + ggp_prcp_density) / ggp_seasonal # +横向并列，/上下
+```
+
+
+## Data manipulation
+ start with factors
+ boxplots
+```{r}
+weather_df |>
+  mutate(name = fct_relevel(name, c("Molokai_HI", "CentralPark_NY", "Waterhole_WA"))) |> #自己制定类别的先后顺序
+  ggplot(aes(x=name, y=tmax)) +
+  geom_boxplot()
+```
+
+```{r}
+weather_df |>
+  mutate(name = fct_reorder(name, tmax)) |> #根据tmax的中位数从低到高排
+  ggplot(aes(x=name, y=tmax)) +
+  geom_boxplot()
+```
+
+make that distribution plot
+```{r}
+weather_df |>
+  select(name, tmax, tmin) |>
+  pivot_longer(
+    tmax:tmin,
+    names_to = "observation",
+    values_to = "temp"
+  ) |>
+  ggplot(aes(x=temp, fill=observation)) +
+  geom_density(alpha=.5) +
+  facet_grid(. ~ name) #行～列，.表示这个方向不分组
+```
+
+make an FAS plot
+```{r}
+pups_df = 
+  read_csv(
+    "data/FAS_pups.csv", skip = 3, na = c("", ".", "NA")
+  ) |>
+  janitor:: clean_names()
+
+litter_df = 
+  read_csv(
+    "data/FAS_litters.csv", na = c("", ".", "NA")) |> 
+  janitor::clean_names() |>
+  separate(group, into = c("dose", "day_of_tx"), 3)
+
+fas_df = 
+  left_join(pups_df, litter_df, by = "litter_number")
+
+fas_df |>
+  select(dose, day_of_tx, starts_with("pd")) |>
+  pivot_longer(
+    starts_with("pd"),
+    names_to = "outcome",
+    values_to = "pn_day"
+  ) |>
+  drop_na() |>
+  mutate(
+    outcome = fct_reorder(outcome, pn_day)
+  ) |>
+  ggplot(aes(x=dose, y=pn_day)) +
+  geom_boxplot() +
+  facet_grid(day_of_tx ~ outcome)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
